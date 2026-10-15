@@ -1,0 +1,56 @@
+[
+    {
+        "image_id": "IMG_0001",
+        "filename": "image_original_1.jpeg",
+        "sha256": "d92bb4aa49eeba6c1d7845d7e992f49d93b4de3dd383a1a35105e32876937edd",
+        "timestamp": "2026-10-08T09:39:26.715360+00:00"
+    },
+    {
+        "image_id": "IMG_0002",
+        "filename": "image_original_as_2.jpeg",
+        "sha256": "ebb5bb8fd45137c2b58ae25c32a42ef03c61f3119bc37cfc9d7dd018a2635b24",
+        "timestamp": "2026-10-08T09:39:27.039716+00:00"
+    },
+    {
+        "image_id": "IMG_0003",
+        "filename": "image_original_as_3.jpeg",
+        "sha256": "839aed5bbf5daf0563ebafa95be60f414ba280a349aa33cb45e952875e4e83ac",
+        "timestamp": "2026-10-08T09:39:27.414768+00:00"
+    },
+    {
+        "image_id": "IMG_0004",
+        "filename": "image_original_as_4.jpeg",
+        "sha256": "1bd8bda2c46c27113a8c4c9b578542ebcaa427f01fe265d0a66db589d1691ebf",
+        "timestamp": "2026-10-08T09:39:27.794360+00:00"
+    },
+    {
+        "image_id": "IMG_0005",
+        "filename": "image_original_sr_1.jpeg",
+        "sha256": "68bea602a05d90ceb740132a505594dc82b217ff9dd5e0fbd562671433b736f8",
+        "timestamp": "2026-10-08T09:39:28.597657+00:00"
+    },
+    {
+        "image_id": "IMG_0006",
+        "filename": "image_original_sr_2.jpeg",
+        "sha256": "1ff4c59df1011e01e028a5cd88a15ab38e04fb42c042231af98a6a097c399552",
+        "timestamp": "2026-10-08T09:39:29.236116+00:00"
+    },
+    {
+        "image_id": "IMG_0007",
+        "filename": "image_original_sr_3.jpeg",
+        "sha256": "427d4fc4a7222f71713c40468c2f5a9257f8622372610ed370a0894f69e55381",
+        "timestamp": "2026-10-08T09:39:30.045621+00:00"
+    },
+    {
+        "image_id": "IMG_0008",
+        "filename": "image_original_sw1.png",
+        "sha256": "256bfa9ff007d51db089b3714028a9be4099d610efc806e6901ba6b65f3c0d71",
+        "timestamp": "2026-10-08T09:39:30.879002+00:00"
+    },
+    {
+        "image_id": "IMG_0009",
+        "filename": "image_original_sw2.png",
+        "sha256": "9af54b1dc4b9306ebf29a62a1c2cd552381856ee949718dbb5279bbfaf7e7511",
+        "timestamp": "2026-10-08T09:39:31.677342+00:00"
+    }
+]

@@ -1,0 +1,153 @@
+[
+	{
+		"inputs": [],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "imageId",
+				"type": "string"
+			},
+			{
+				"indexed": false,
+				"internalType": "bytes32",
+				"name": "sha256Hash",
+				"type": "bytes32"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "prediction",
+				"type": "string"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint16",
+				"name": "confidenceBps",
+				"type": "uint16"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "timestamp",
+				"type": "uint256"
+			}
+		],
+		"name": "ImageRegistered",
+		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "imageId",
+				"type": "string"
+			}
+		],
+		"name": "getImageRecord",
+		"outputs": [
+			{
+				"internalType": "bytes32",
+				"name": "sha256Hash",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "string",
+				"name": "prediction",
+				"type": "string"
+			},
+			{
+				"internalType": "uint16",
+				"name": "confidenceBps",
+				"type": "uint16"
+			},
+			{
+				"internalType": "uint256",
+				"name": "timestamp",
+				"type": "uint256"
+			},
+			{
+				"internalType": "bool",
+				"name": "exists",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "owner",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "imageId",
+				"type": "string"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "sha256Hash",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "string",
+				"name": "prediction",
+				"type": "string"
+			},
+			{
+				"internalType": "uint16",
+				"name": "confidenceBps",
+				"type": "uint16"
+			}
+		],
+		"name": "registerImage",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "imageId",
+				"type": "string"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "uploadedHash",
+				"type": "bytes32"
+			}
+		],
+		"name": "verifyImage",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "registered",
+				"type": "bool"
+			},
+			{
+				"internalType": "bool",
+				"name": "hashMatches",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
+]
