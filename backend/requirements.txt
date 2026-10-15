@@ -7,3 +7,4 @@ torch>=2.2
 torchvision>=0.17
 web3>=7,<8
 PyMuPDF>=1.24
+pytesseract
