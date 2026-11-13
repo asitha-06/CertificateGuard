@@ -1,20 +1,17 @@
-@"
-
 # Python environments
 backend/.venv/
 venv/
 .venv/
-
 # Frontend dependencies
 frontend/node_modules/
-
 # Secrets and environment files
 .env
 .env.*
 !.env.example
-
 # Python cache
 __pycache__/
 *.pyc
-"@ | Add-Content .gitignore
+# Dataset archives
 dataset/capstone_dataset.zip
+# Build files
+frontend/dist/

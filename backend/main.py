@@ -12,7 +12,7 @@ from pathlib import Path
 import torch
 import torch.nn as nn
 from torchvision import models, transforms
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, ImageFilter
 import pytesseract
 import fitz
 
@@ -281,6 +281,58 @@ def extract_named_fields(text: str) -> dict:
     return result
 
 
+def preprocess_image_for_ocr(image: Image.Image) -> list[Image.Image]:
+    """
+    Create several OCR-friendly versions of an image.
+    The original upload bytes are never changed; these copies are only for OCR.
+    """
+    image = ImageOps.exif_transpose(image).convert("RGB")
+
+    # Upscale small images to make characters easier for Tesseract to read.
+    width, height = image.size
+    scale = max(1, min(3, 1800 // max(width, height)))
+    if scale > 1:
+        image = image.resize(
+            (width * scale, height * scale),
+            Image.Resampling.LANCZOS,
+        )
+
+    gray = ImageOps.grayscale(image)
+    contrast = ImageOps.autocontrast(gray)
+    sharpened = contrast.filter(ImageFilter.UnsharpMask(radius=2, percent=160, threshold=3))
+
+    # Adaptive thresholding is not available in Pillow alone. This global
+    # threshold variant is a lightweight additional attempt for clean scans.
+    threshold = sharpened.point(lambda pixel: 255 if pixel > 165 else 0)
+
+    return [image, contrast, sharpened, threshold]
+
+
+def run_ocr_with_preprocessing(image: Image.Image) -> tuple[str, str]:
+    """Run Tesseract on several processed versions and keep the richest text."""
+    candidates = []
+    for index, candidate in enumerate(preprocess_image_for_ocr(image)):
+        for config in ("--oem 3 --psm 6", "--oem 3 --psm 11"):
+            try:
+                text = pytesseract.image_to_string(
+                    candidate,
+                    lang="eng",
+                    config=config,
+                ).strip()
+                # Prefer attempts that produce more useful non-whitespace text.
+                score = len(re.sub(r"\s+", "", text))
+                candidates.append((score, text, f"preprocessing_{index}_{config}"))
+            except Exception:
+                logger.exception("Tesseract OCR attempt failed")
+
+    if not candidates:
+        raise RuntimeError("Tesseract could not process any preprocessed image.")
+
+    candidates.sort(key=lambda item: item[0], reverse=True)
+    _, best_text, method = candidates[0]
+    return best_text, method
+
+
 def extract_certificate_details(
     file_bytes: bytes,
     filename: str,
@@ -306,24 +358,14 @@ def extract_certificate_details(
                             io.BytesIO(pixmap.tobytes("png"))
                         ).convert("RGB")
 
-                        page_text = pytesseract.image_to_string(
-                            page_image,
-                            lang="eng",
-                        ).strip()
+                        page_text, _ = run_ocr_with_preprocessing(page_image)
 
                     if page_text:
                         extracted_text.append(page_text)
 
         else:
-            image = Image.open(
-                io.BytesIO(file_bytes)
-            )
-            image = ImageOps.exif_transpose(image).convert("RGB")
-
-            text = pytesseract.image_to_string(
-                image,
-                lang="eng",
-            ).strip()
+            image = Image.open(io.BytesIO(file_bytes))
+            text, ocr_method = run_ocr_with_preprocessing(image)
 
             if text:
                 extracted_text.append(text)
@@ -334,6 +376,7 @@ def extract_certificate_details(
             "ocr_status": "success",
             "ocr_text": full_text,
             "ocr_error": None,
+            "ocr_method": "preprocessed_multi_pass",
             "details": extract_named_fields(full_text),
         }
 
@@ -344,6 +387,7 @@ def extract_certificate_details(
             "ocr_status": "error",
             "ocr_text": "",
             "ocr_error": str(exc),
+            "ocr_method": None,
             "details": {
                 "student_name": None,
                 "certificate_id": None,
@@ -383,6 +427,67 @@ def build_field_analysis(details: dict) -> dict:
 # 6. LOCAL HASH DATABASE
 # ==================================================
 
+def lookup_registration_record(registration_number: str) -> dict:
+    """Find the existing image/certificate ID for a student registration number."""
+    if not HASH_CSV_PATH.exists():
+        return {
+            "found": False,
+            "certificate_id": None,
+            "status": "database_unavailable",
+        }
+
+    try:
+        with open(
+            HASH_CSV_PATH,
+            "r",
+            newline="",
+            encoding="utf-8-sig",
+        ) as csv_file:
+            reader = csv.DictReader(csv_file)
+
+            for row in reader:
+                normalized = {
+                    str(key).strip().lower(): value
+                    for key, value in row.items()
+                    if key is not None
+                }
+
+                stored_registration = (
+                    normalized.get("registration_number") or ""
+                ).strip().upper()
+
+                if stored_registration == registration_number.strip().upper():
+                    image_id = (
+                        normalized.get("image_id")
+                        or normalized.get("certificate_id")
+                        or normalized.get("certificate id")
+                        or normalized.get("id")
+                    )
+
+                    if image_id:
+                        return {
+                            "found": True,
+                            "certificate_id": image_id.strip(),
+                            "registration_number": stored_registration,
+                            "status": "registration_match",
+                        }
+
+        return {
+            "found": False,
+            "certificate_id": None,
+            "status": "registration_not_found",
+        }
+
+    except Exception as exc:
+        logger.exception("Registration lookup failed")
+        return {
+            "found": False,
+            "certificate_id": None,
+            "status": "database_error",
+            "error": str(exc),
+        }
+
+
 def lookup_hash_record(file_hash: str) -> dict:
     if not HASH_CSV_PATH.exists():
         return {
@@ -419,7 +524,8 @@ def lookup_hash_record(file_hash: str) -> dict:
                     and stored_hash.strip().lower() == file_hash.lower()
                 ):
                     certificate_id = (
-                        normalized.get("certificate_id")
+                        normalized.get("image_id")
+                        or normalized.get("certificate_id")
                         or normalized.get("certificate id")
                         or normalized.get("id")
                     )
@@ -651,7 +757,7 @@ def health():
 @app.post("/api/verify")
 async def verify_certificate(
     file: UploadFile = File(...),
-    certificate_id: str | None = Form(default=None),
+    registration_number: str | None = Form(default=None),
 ):
     filename = file.filename or "certificate"
     extension = Path(filename).suffix.lower()
@@ -720,16 +826,32 @@ async def verify_certificate(
     field_analysis = build_field_analysis(ocr_result["details"])
     hash_record = lookup_hash_record(file_hash)
 
-    supplied_id = (certificate_id or "").strip()
+    supplied_registration = (registration_number or "").strip().upper()
 
     # Ignore Swagger's example placeholder.
-    if supplied_id.lower() == "string":
-        supplied_id = ""
+    if supplied_registration.lower() == "string":
+        supplied_registration = ""
+
+    registration_record = None
+
+    if supplied_registration:
+        registration_record = lookup_registration_record(
+            supplied_registration
+        )
+
+        if not registration_record["found"]:
+            raise HTTPException(
+                status_code=404,
+                detail="Registration number not found in our records.",
+            )
 
     resolved_certificate_id = (
-        supplied_id
-        or hash_record.get("certificate_id")
-        or ocr_result["details"].get("certificate_id")
+        registration_record["certificate_id"]
+        if registration_record
+        else (
+            hash_record.get("certificate_id")
+            or ocr_result["details"].get("certificate_id")
+        )
     )
 
     blockchain_result = get_blockchain_record(
@@ -740,6 +862,8 @@ async def verify_certificate(
     response = {
         "status": "success",
         "filename": filename,
+        "registration_number": supplied_registration or None,
+        "certificate_id": resolved_certificate_id,
         "prediction": classification["prediction"],
         "confidence": classification["confidence"],
         "model_status": classification["model_status"],
@@ -750,6 +874,7 @@ async def verify_certificate(
         "ocr_status": ocr_result["ocr_status"],
         "ocr_text": ocr_result["ocr_text"],
         "ocr_error": ocr_result["ocr_error"],
+        "ocr_method": ocr_result.get("ocr_method"),
         "details": ocr_result["details"],
         "field_analysis": field_analysis,
         "tampered_fields": field_analysis["tampered_fields"],
