@@ -145,7 +145,7 @@ export default function App() {
             id="registration-number"
             className="text-input"
             type="text"
-            placeholder="Example: 23BCE20239"
+            placeholder="Example: 23BCEXXXXX"
             value={registrationNumber}
             onChange={(event) => setRegistrationNumber(event.target.value.toUpperCase())}
             autoComplete="off"
