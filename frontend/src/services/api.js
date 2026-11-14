@@ -8,9 +8,15 @@ async function request(path, options = {}) {
 
   try {
     response = await fetch(`${BASE_URL}${path}`, options);
-  } catch {
+    } catch (err) {
+    console.error("API NETWORK ERROR:", {
+      url: `${BASE_URL}${path}`,
+      errorName: err?.name,
+      errorMessage: err?.message,
+    });
+
     throw new Error(
-      `Cannot reach the backend at ${BASE_URL}. Start the FastAPI server and check VITE_API_BASE_URL.`
+      `Network request failed: ${err?.message || "Unknown connection error"}`
     );
   }
 
