@@ -427,9 +427,17 @@ def build_field_analysis(details: dict) -> dict:
 # 6. LOCAL HASH DATABASE
 # ==================================================
 
+
 def lookup_registration_record(registration_number: str) -> dict:
     """Find the existing image/certificate ID for a student registration number."""
+
+    logger.info("========== REGISTRATION LOOKUP ==========")
+    logger.info("CSV path: %s", HASH_CSV_PATH)
+    logger.info("CSV exists: %s", HASH_CSV_PATH.exists())
+    logger.info("Requested registration: %s", registration_number)
+
     if not HASH_CSV_PATH.exists():
+        logger.error("Registration CSV file is missing!")
         return {
             "found": False,
             "certificate_id": None,
@@ -445,7 +453,13 @@ def lookup_registration_record(registration_number: str) -> dict:
         ) as csv_file:
             reader = csv.DictReader(csv_file)
 
+            logger.info("CSV headers: %s", reader.fieldnames)
+
+            row_count = 0
+
             for row in reader:
+                row_count += 1
+
                 normalized = {
                     str(key).strip().lower(): value
                     for key, value in row.items()
@@ -464,6 +478,9 @@ def lookup_registration_record(registration_number: str) -> dict:
                         or normalized.get("id")
                     )
 
+                    logger.info("Registration match found!")
+                    logger.info("Matched image ID: %s", image_id)
+
                     if image_id:
                         return {
                             "found": True,
@@ -471,6 +488,12 @@ def lookup_registration_record(registration_number: str) -> dict:
                             "registration_number": stored_registration,
                             "status": "registration_match",
                         }
+
+            logger.info("Total CSV rows read: %s", row_count)
+            logger.warning(
+                "No match found for registration number: %s",
+                registration_number,
+            )
 
         return {
             "found": False,
@@ -486,7 +509,6 @@ def lookup_registration_record(registration_number: str) -> dict:
             "status": "database_error",
             "error": str(exc),
         }
-
 
 def lookup_hash_record(file_hash: str) -> dict:
     if not HASH_CSV_PATH.exists():
