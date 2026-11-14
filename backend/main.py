@@ -1,4 +1,4 @@
-
+import time
 import os
 import io
 import csv
@@ -781,6 +781,11 @@ async def verify_certificate(
     file: UploadFile = File(...),
     registration_number: str | None = Form(default=None),
 ):
+    request_start = time.perf_counter()
+
+    logger.info("========== VERIFY REQUEST RECEIVED ==========")
+    logger.info("Filename: %s", file.filename)
+    logger.info("Registration number supplied: %s", bool(registration_number))
     filename = file.filename or "certificate"
     extension = Path(filename).suffix.lower()
 
@@ -796,6 +801,11 @@ async def verify_certificate(
         )
 
     file_bytes = await file.read()
+    logger.info(
+        "VERIFY: File read completed. Size: %s bytes",
+        len(file_bytes)
+    )
+    
 
     if not file_bytes:
         raise HTTPException(
@@ -835,6 +845,10 @@ async def verify_certificate(
             ).convert("RGB")
 
         classification = classify_certificate(classification_image)
+        logger.info(
+            "VERIFY: Classification completed. Prediction: %s",
+            classification["prediction"]
+        )
 
     except Exception as exc:
         logger.exception("Uploaded file could not be read")
@@ -845,8 +859,10 @@ async def verify_certificate(
         )
 
     ocr_result = extract_certificate_details(file_bytes, filename)
+    logger.info("VERIFY: OCR extraction completed")
     field_analysis = build_field_analysis(ocr_result["details"])
     hash_record = lookup_hash_record(file_hash)
+    logger.info("VERIFY: Hash lookup completed")
 
     supplied_registration = (registration_number or "").strip().upper()
 
@@ -860,6 +876,7 @@ async def verify_certificate(
         registration_record = lookup_registration_record(
             supplied_registration
         )
+        logger.info("VERIFY: Registration lookup completed")
 
         if not registration_record["found"]:
             raise HTTPException(
@@ -880,6 +897,7 @@ async def verify_certificate(
         resolved_certificate_id,
         file_hash,
     )
+    logger.info("VERIFY: Blockchain lookup completed")
 
     response = {
         "status": "success",
@@ -904,8 +922,14 @@ async def verify_certificate(
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
+
     save_history(response)
+    logger.info(
+        "========== VERIFY COMPLETED in %.2f seconds ==========",
+        time.perf_counter() - request_start
+    )
     return response
+    
 
 
 @app.get("/api/history")
